@@ -80,13 +80,13 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Landing Page Client.loader.js";
+      var loaderUrl = buildUrl + "/50038b88797c6b96fe9f7a9aa2e8b84a.loader.js";
       var config =
       {
         arguments: [],
-        dataUrl: buildUrl + "/Landing Page Client.data",
-        frameworkUrl: buildUrl + "/Landing Page Client.framework.js",
-        codeUrl: buildUrl + "/Landing Page Client.wasm",
+        dataUrl: buildUrl + "/82c4b5b81e81c8cbd2623856b0e66bd7.data",
+        frameworkUrl: buildUrl + "/81e224c9112cfeb0c84e70f552fc5546.framework.js",
+        codeUrl: buildUrl + "/5e8e3943328720b96f631fa2e9e044e0.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Heptagram064",
         productName: "heptagram064.io",
@@ -299,6 +299,16 @@
                 Resize();
               }
             );
+
+            document.addEventListener
+            (
+              "pointerlockchange",
+              function ()
+              {
+                var isLocked = (document.pointerLockElement === canvas);
+                unityInstance.SendMessage('Bugfixes', 'OnPointerLockChange', isLocked ? 1 : 0);
+              }
+            )
           }
         ).catch
         (
