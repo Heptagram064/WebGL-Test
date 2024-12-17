@@ -3,43 +3,309 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | WebGL-Test</title>
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
-    <style>
-      html, body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden; /* Prevent scrolling */
-      }
-      #unity-canvas {
-        display: block; /* Remove extra space */
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100vw; /* Full viewport width */
-        height: 100vh; /* Full viewport height */
-        background: #231F20;
-      }
-    </style>
+    <title>heptagram064.io</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+    <link rel="manifest" href="manifest.webmanifest">
   </head>
   <body>
-    <canvas id="unity-canvas" tabindex="-1"></canvas>
-    <script src="Build/Landing Page Client.loader.js"></script>
+    <div id="unity-container">
+      <canvas id="unity-canvas-buffer" width=960 height=600 tabindex="-1"></canvas>
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+    </div>
     <script>
-      createUnityInstance(document.querySelector("#unity-canvas"), {
+      window.addEventListener
+      (
+        "load", function ()
+        {
+          if ("serviceWorker" in navigator)
+          {
+            navigator.serviceWorker.register("ServiceWorker.js");
+          }
+        }
+      );
+
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var canvasBuffer = document.querySelector("#unity-canvas-buffer");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+      var isResizing = false;
+      var shouldFinalizeResizing = false;
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type)
+      {
+        // function updateBannerVisibility()
+        // {
+        //   warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        // }
+
+        // var div = document.createElement('div');
+        // div.innerHTML = msg;
+        // warningBanner.appendChild(div);
+
+        // if (type == 'error')
+        // {
+        //   div.style = 'background: red; padding: 10px;';
+        // }
+        // else
+        // {
+        //   if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+        //   setTimeout
+        //   (
+        //     function()
+        //     {
+        //       warningBanner.removeChild(div);
+        //       updateBannerVisibility();
+        //     },
+        //     5000
+        //   );
+        // }
+
+        // updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/Landing Page Client.loader.js";
+      var config =
+      {
         arguments: [],
-        dataUrl: "Build/Landing Page Client.data",
-        frameworkUrl: "Build/Landing Page Client.framework.js",
-        codeUrl: "Build/Landing Page Client.wasm",
+        dataUrl: buildUrl + "/Landing Page Client.data",
+        frameworkUrl: buildUrl + "/Landing Page Client.framework.js",
+        codeUrl: buildUrl + "/Landing Page Client.wasm",
         streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "WebGL-Test",
-        productVersion: "0.1",
-        // matchWebGLToCanvasSize: false, // Uncomment this to separately control WebGL canvas render size and DOM element size.
-        // devicePixelRatio: 1, // Uncomment this to override low DPI rendering on high DPI displays.
-      });
+        companyName: "Heptagram064",
+        productName: "heptagram064.io",
+        productVersion: "1.0",
+        showBanner: unityShowBanner,
+      };
+
+      // By default Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      config.matchWebGLToCanvasSize = false;
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
+      {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+      }
+
+      loadingBar.style.display = "block";
+
+      function waitForNextFrame()
+      {
+        return new Promise
+        (
+          resolve =>
+          {
+            requestAnimationFrame(resolve);
+          }
+        );
+      }
+
+      async function CopyToBuffer()
+      {
+        // Get WebGL context from the Unity canvas
+        const canvasContext = canvas.getContext('webgl2');
+        if (!canvasContext)
+        {
+            console.error('Unable to get WebGL context from canvas.');
+            return;
+        }
+
+        // Get WebGL context from the canvas buffer
+        const canvasBufferContext = canvasBuffer.getContext('2d');
+        if (!canvasBufferContext)
+        {
+            console.error('Unable to get 2D context from canvas buffer.');
+            return;
+        }
+
+        // Ensure there is something to copy
+        canvasContext.flush();
+        canvasContext.finish();
+
+        // Skip the initial frame, for it may be blank
+        await waitForNextFrame();
+
+        // Copy the pixels from the canvas
+        const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+        canvasContext.readPixels(0, 0, canvas.width, canvas.height, canvasContext.RGBA, canvasContext.UNSIGNED_BYTE, pixels);
+
+        // Flip the pixels correctly for the origin point difference
+        for (let y = 0; y < canvas.height / 2; y++)
+        {
+          for (let x = 0; x < canvas.width; x++)
+          {
+            // Calculate the index for the current row (y)
+            const topIndex = (y * canvas.width + x) * 4;
+            const bottomIndex = ((canvas.height - y - 1) * canvas.width + x) * 4;
+
+            // Swap the rows by swapping the pixel data
+            for (let i = 0; i < 4; i++)
+            {
+                const temp = pixels[topIndex + i];
+                pixels[topIndex + i] = pixels[bottomIndex + i];
+                pixels[bottomIndex + i] = temp;
+            }
+          }
+        }
+
+        // Paste the pixels into the canvas buffer
+        const imageData = new ImageData(new Uint8ClampedArray(pixels), canvas.width, canvas.height);
+        canvasBufferContext.putImageData(imageData, 0, 0);
+      }
+
+      function Delay(ms)
+      {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      function GetSize(params)
+      {
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        const devicePixelRatio = window.devicePixelRatio || 1;
+
+        const width = containerWidth * devicePixelRatio;
+        const height = containerHeight * devicePixelRatio;
+
+        return { width: width, height: height };
+      }
+
+      function Resize()
+      {
+        // Track if we are already resizing
+        if (isResizing)
+        {
+          // If so, register we have backlog
+          shouldFinalizeResizing = true;
+          return;
+        }
+
+        // If not, start resizing
+        isResizing = true;
+
+        // Asynchronous operation
+        ResizeLoad();
+        
+      }
+
+      async function ResizeLoad()
+      {
+        await ResizeWorkLoad();
+
+        // Check if there was backlog
+        if (shouldFinalizeResizing)
+        {
+          // If so, clear the backlog check and reperform the workload
+          shouldFinalizeResizing = false;
+          ResizeLoad();
+        }
+        else
+        {
+          // If not, disable resizing context
+          isResizing = false;
+        }
+      }
+
+      async function ResizeWorkLoad()
+      {
+        // Get the new environment client area size
+        const newSize = GetSize();
+        
+        // Copy the image data from the Unity canvas to the buffer canvas
+        await CopyToBuffer();
+
+        // Show the buffer
+        canvasBuffer.style.display = 'block';
+
+        // Hide the canvas
+        canvas.style.display = 'none';
+
+        // Resize the canvas
+        canvas.width = newSize.width;
+        canvas.height = newSize.height;
+
+        // Await the canvas resizing
+        const canvasContext = canvas.getContext('webgl2');
+
+        // For sanity and selecting the canvas
+        canvasContext.flush();
+        canvasContext.finish();
+
+        // Tick once to complete previous frame
+        await waitForNextFrame();
+
+        // Tick twice to skip the black frame
+        await waitForNextFrame();
+
+        // Show the canvas
+        canvas.style.display = 'block';
+
+        // Hide the buffer
+        canvasBuffer.style.display = 'none';
+
+        // Resize the buffer
+        canvasBuffer.width = newSize.width;
+        canvasBuffer.height = newSize.height;
+      }
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () =>
+      {
+        createUnityInstance
+        (
+          canvas,
+          config,
+          (progress) =>
+          {
+            progressBarFull.style.width = 100 * progress + "%";
+          }
+        ).then
+        (
+          (unityInstance) =>
+          {
+            loadingBar.style.display = "none";
+
+            Resize();
+
+            window.addEventListener
+            (
+              "resize",
+              function ()
+              {
+                Resize();
+              }
+            );
+          }
+        ).catch
+        (
+          (message) => { alert(message); }
+        );
+      };
+      document.body.appendChild(script);
     </script>
   </body>
 </html>
