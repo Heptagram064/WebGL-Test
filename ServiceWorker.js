@@ -2,7 +2,7 @@ const cacheName = "Heptagram064-heptagram064.io-1.0";
 const contentToCache = [
     "Build/50038b88797c6b96fe9f7a9aa2e8b84a.loader.js",
     "Build/81e224c9112cfeb0c84e70f552fc5546.framework.js",
-    "Build/82c4b5b81e81c8cbd2623856b0e66bd7.data",
+    "Build/a16e8a571dc2b7d053c85a6a6f6a8f0a.data",
     "Build/5e8e3943328720b96f631fa2e9e044e0.wasm",
     "TemplateData/style.css"
 
